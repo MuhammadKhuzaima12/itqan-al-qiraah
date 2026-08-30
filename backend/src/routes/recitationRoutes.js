@@ -36,9 +36,9 @@ router.post("/analyze", upload.single("audio"), (req, res) => {
     const audioPath = path.resolve(req.file.path);
 
     const python = spawn(
-        path.resolve("../.venv_Itqan/Scripts/python.exe"),
+        "python",
         [
-            path.resolve("ai_service.py"),
+            path.resolve("src/../ai_service.py"),
             audioPath,
             surahNumber || "",
             ayahNumber || ""
