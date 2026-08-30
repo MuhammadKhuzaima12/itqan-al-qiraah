@@ -1,0 +1,11 @@
+node_modules/
+
+.env
+
+uploads/
+
+__pycache__/
+*.py[cod]
+
+*.log
+npm-debug.log*
