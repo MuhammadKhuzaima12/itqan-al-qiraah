@@ -2,6 +2,7 @@ import express from "express";
 import multer from "multer";
 import { spawn } from "child_process";
 import path from "path";
+import { fileURLToPath } from "url";
 
 const router = express.Router();
 
@@ -15,6 +16,9 @@ const storage = multer.diskStorage({
         cb(null, `recitation-${Date.now()}${extension}`);
     }
 });
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const upload = multer({
     storage,
@@ -38,7 +42,7 @@ router.post("/analyze", upload.single("audio"), (req, res) => {
     const python = spawn(
         "python",
         [
-            path.resolve("src/../ai_service.py"),
+            path.resolve(__dirname, "../../ai_service.py"),
             audioPath,
             surahNumber || "",
             ayahNumber || ""
