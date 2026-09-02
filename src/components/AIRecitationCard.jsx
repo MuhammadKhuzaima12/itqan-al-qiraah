@@ -16,20 +16,15 @@ function AIRecitationCard({
     ayah,
     selectedSurah,
 }) {
-    const [recording, setRecording] =
-        useState(false);
+    const [recording, setRecording] = useState(false);
+    const [analyzing, setAnalyzing] = useState(false);
+    const [result, setResult] = useState(null);
+    const [error, setError] = useState("");
+    const [audioUrl, setAudioUrl] = useState(null);
 
-    const [analyzing, setAnalyzing] =
-        useState(false);
-
-    const [result, setResult] =
-        useState(null);
-
-    const [error, setError] =
-        useState("");
-
-    const [audioUrl, setAudioUrl] =
-        useState(null);
+    // Correct Quran recitation
+    const [correctAudioUrl, setCorrectAudioUrl] = useState(null);
+    const [loadingCorrectAudio, setLoadingCorrectAudio] = useState(false);
 
     const recorderRef = useRef(null);
     const streamRef = useRef(null);
@@ -42,6 +37,10 @@ function AIRecitationCard({
     const ayahNumber =
         ayah?.numberInSurah ||
         ayah?.number;
+
+    // ==========================================
+    // START RECORDING
+    // ==========================================
 
     async function startRecording() {
         try {
@@ -107,6 +106,7 @@ function AIRecitationCard({
             recorder.start();
 
             setRecording(true);
+
         } catch (err) {
             console.error(err);
 
@@ -116,6 +116,10 @@ function AIRecitationCard({
         }
     }
 
+    // ==========================================
+    // STOP RECORDING
+    // ==========================================
+
     function stopRecording() {
         if (
             recorderRef.current &&
@@ -123,16 +127,71 @@ function AIRecitationCard({
             "inactive"
         ) {
             recorderRef.current.stop();
+
             setRecording(false);
         }
     }
+
+    // ==========================================
+    // LOAD CORRECT QURAN RECITATION
+    // ==========================================
+
+    async function loadCorrectRecitation() {
+        if (!surahNumber || !ayahNumber) {
+            setError(
+                "Please select an Ayah first."
+            );
+            return;
+        }
+
+        try {
+            setLoadingCorrectAudio(true);
+            setError("");
+
+            const response = await fetch(
+                `https://api.alquran.cloud/v1/ayah/${surahNumber}:${ayahNumber}/ar.alafasy`
+            );
+
+            const data =
+                await response.json();
+
+            if (
+                !response.ok ||
+                data.code !== 200 ||
+                !data.data?.audio
+            ) {
+                throw new Error(
+                    "Could not load correct recitation."
+                );
+            }
+
+            setCorrectAudioUrl(
+                data.data.audio
+            );
+
+        } catch (err) {
+            console.error(err);
+
+            setError(
+                "Could not load the correct recitation."
+            );
+
+        } finally {
+            setLoadingCorrectAudio(false);
+        }
+    }
+
+    // ==========================================
+    // SEND AUDIO TO AI BACKEND
+    // ==========================================
 
     async function analyzeAudio(blob) {
         setAnalyzing(true);
         setError("");
 
         try {
-            const formData = new FormData();
+            const formData =
+                new FormData();
 
             formData.append(
                 "audio",
@@ -150,18 +209,22 @@ function AIRecitationCard({
                 String(ayahNumber)
             );
 
-            const response = await fetch(
-                `${API_URL}/api/recitation/analyze`,
-                {
-                    method: "POST",
-                    body: formData,
-                }
-            );
+            const response =
+                await fetch(
+                    `${API_URL}/api/recitation/analyze`,
+                    {
+                        method: "POST",
+                        body: formData,
+                    }
+                );
 
             const data =
                 await response.json();
 
-            if (!response.ok || !data.success) {
+            if (
+                !response.ok ||
+                !data.success
+            ) {
                 throw new Error(
                     data.message ||
                     "AI analysis failed"
@@ -169,6 +232,7 @@ function AIRecitationCard({
             }
 
             setResult(data);
+
         } catch (err) {
             console.error(err);
 
@@ -176,10 +240,15 @@ function AIRecitationCard({
                 err.message ||
                 "Could not analyze recitation."
             );
+
         } finally {
             setAnalyzing(false);
         }
     }
+
+    // ==========================================
+    // RESET
+    // ==========================================
 
     function reset() {
         setResult(null);
@@ -191,15 +260,24 @@ function AIRecitationCard({
         }
 
         setAudioUrl(null);
+
+        // Remove correct recitation audio
+        setCorrectAudioUrl(null);
+
         chunksRef.current = [];
     }
 
     const analysis =
         result?.analysis;
 
+    // ==========================================
+    // UI
+    // ==========================================
+
     return (
         <div className="ai-recitation-card">
 
+            {/* TOP SECTION */}
             <div className="ai-recitation-top">
 
                 <div className="ai-symbol">
@@ -226,6 +304,7 @@ function AIRecitationCard({
             </div>
 
 
+            {/* EXPECTED AYAH */}
             {ayah?.text && (
                 <div
                     className="ai-expected-ayah"
@@ -236,31 +315,69 @@ function AIRecitationCard({
             )}
 
 
+            {/* ACTIONS */}
             <div className="ai-recitation-actions">
 
+                {/* LISTEN TO CORRECT RECITATION */}
+                <button
+                    className="ai-listen-button"
+                    onClick={
+                        loadCorrectRecitation
+                    }
+                    disabled={
+                        loadingCorrectAudio
+                    }
+                >
+                    {loadingCorrectAudio ? (
+                        <>
+                            <Loader2
+                                size={16}
+                                className="ai-spin"
+                            />
+
+                            Loading...
+                        </>
+                    ) : (
+                        <>
+                            🔊
+                            Listen to Correct Recitation
+                        </>
+                    )}
+                </button>
+
+
+                {/* START RECORDING */}
                 {!recording &&
                     !analyzing && (
                         <button
                             className="ai-start"
-                            onClick={startRecording}
+                            onClick={
+                                startRecording
+                            }
                         >
                             <Mic2 size={16} />
+
                             Start Recording
                         </button>
                     )}
 
 
+                {/* STOP & ANALYZE */}
                 {recording && (
                     <button
                         className="ai-stop"
-                        onClick={stopRecording}
+                        onClick={
+                            stopRecording
+                        }
                     >
                         <Square size={15} />
+
                         Stop & Analyze
                     </button>
                 )}
 
 
+                {/* ANALYZING */}
                 {analyzing && (
                     <button
                         className="ai-start"
@@ -270,11 +387,25 @@ function AIRecitationCard({
                             size={16}
                             className="ai-spin"
                         />
+
                         Analyzing...
                     </button>
                 )}
 
 
+                {/* CORRECT RECITATION PLAYER */}
+                {correctAudioUrl && (
+                    <audio
+                        controls
+                        src={
+                            correctAudioUrl
+                        }
+                        className="ai-audio-player"
+                    />
+                )}
+
+
+                {/* USER'S RECORDED AUDIO */}
                 {audioUrl && (
                     <audio
                         controls
@@ -284,6 +415,7 @@ function AIRecitationCard({
                 )}
 
 
+                {/* TRY AGAIN */}
                 {(result || audioUrl) &&
                     !recording &&
                     !analyzing && (
@@ -291,7 +423,10 @@ function AIRecitationCard({
                             className="ai-listen-button"
                             onClick={reset}
                         >
-                            <RotateCcw size={15} />
+                            <RotateCcw
+                                size={15}
+                            />
+
                             Try Again
                         </button>
                     )}
@@ -299,20 +434,27 @@ function AIRecitationCard({
             </div>
 
 
+            {/* ERROR */}
             {error && (
                 <div className="ai-error">
+
                     <AlertCircle size={17} />
+
                     {error}
+
                 </div>
             )}
 
 
+            {/* RESULT */}
             {analysis && (
                 <div className="ai-result">
 
+                    {/* RESULT HEADER */}
                     <div className="ai-result-header">
 
                         <div>
+
                             <div className="ai-label">
                                 RESULT
                             </div>
@@ -320,18 +462,26 @@ function AIRecitationCard({
                             <strong>
                                 Analysis Complete
                             </strong>
+
                         </div>
 
-                        {analysis.score !== null &&
-                            analysis.score !== undefined && (
+
+                        {/* SCORE */}
+                        {analysis.score !==
+                            null &&
+                            analysis.score !==
+                            undefined && (
                                 <div className="ai-score">
-                                    {analysis.score}%
+                                    {
+                                        analysis.score
+                                    }%
                                 </div>
                             )}
 
                     </div>
 
 
+                    {/* HEARD */}
                     <div className="ai-result-section">
 
                         <span className="ai-result-label">
@@ -339,12 +489,15 @@ function AIRecitationCard({
                         </span>
 
                         <p dir="rtl">
-                            {analysis.transcription}
+                            {
+                                analysis.transcription
+                            }
                         </p>
 
                     </div>
 
 
+                    {/* EXPECTED */}
                     {analysis.expected && (
                         <div className="ai-result-section">
 
@@ -353,45 +506,70 @@ function AIRecitationCard({
                             </span>
 
                             <p dir="rtl">
-                                {analysis.expected}
+                                {
+                                    analysis.expected
+                                }
                             </p>
 
                         </div>
                     )}
 
 
-                    {analysis.errors?.length > 0 ? (
+                    {/* MISTAKES */}
+                    {analysis.errors?.length >
+                        0 ? (
                         <div className="ai-errors">
 
                             <div className="ai-errors-title">
-                                <AlertCircle size={16} />
+
+                                <AlertCircle
+                                    size={16}
+                                />
+
                                 Mistakes
+
                             </div>
 
+
                             {analysis.errors.map(
-                                (item, index) => (
+                                (
+                                    item,
+                                    index
+                                ) => (
                                     <div
                                         className="ai-error-item"
-                                        key={index}
+                                        key={
+                                            index
+                                        }
                                     >
 
                                         <span>
-                                            {item.type}
+                                            {
+                                                item.type
+                                            }
                                         </span>
 
-                                        <div dir="rtl">
+
+                                        <div
+                                            dir="rtl"
+                                        >
 
                                             {item.expected && (
                                                 <strong>
                                                     Expected:{" "}
-                                                    {item.expected}
+                                                    {
+                                                        item.expected
+                                                    }
                                                 </strong>
                                             )}
+
 
                                             {item.heard && (
                                                 <small>
                                                     Heard:{" "}
-                                                    {item.heard}
+                                                    {
+                                                        item.heard
+                                                    }
                                                 </small>
                                             )}
 
@@ -402,11 +580,20 @@ function AIRecitationCard({
                             )}
 
                         </div>
+
                     ) : (
+
+                        /* SUCCESS */
                         <div className="ai-success">
-                            <CheckCircle2 size={17} />
+
+                            <CheckCircle2
+                                size={17}
+                            />
+
                             No word-level mistakes detected.
+
                         </div>
+
                     )}
 
                 </div>

@@ -219,6 +219,13 @@ function analyzeWithAI({
     surahNumber,
     ayahNumber
 }) {
+    if (!aiWorkerReady) {
+        return Promise.reject(
+            new Error(
+                "Quran AI model is still loading. Please try again in a few seconds."
+            )
+        );
+    }
 
     return new Promise(
         (resolve, reject) => {

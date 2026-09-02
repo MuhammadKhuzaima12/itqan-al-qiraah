@@ -3,6 +3,7 @@ import json
 import os
 import re
 from difflib import SequenceMatcher
+import urllib.request
 
 # =========================================================
 # FORCE UTF-8
@@ -12,7 +13,7 @@ sys.stdin.reconfigure(encoding="utf-8")
 sys.stdout.reconfigure(encoding="utf-8")
 sys.stderr.reconfigure(encoding="utf-8")
 
-import torch
+import torch 
 from transformers import pipeline
 
 # =========================================================
@@ -24,21 +25,27 @@ DEVICE = 0 if torch.cuda.is_available() else -1
 
 
 # =========================================================
-# QURAN MVP DATA
+# QURAN API
 # =========================================================
 
-QURAN_AYAHS = {
-    ("1", "1"): "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ",
-    ("1", "2"): "الْحَمْدُ لِلَّهِ رَبِّ الْعَالَمِينَ",
-    ("1", "3"): "الرَّحْمَٰنِ الرَّحِيمِ",
-    ("1", "4"): "مَالِكِ يَوْمِ الدِّينِ",
-    ("1", "5"): "إِيَّاكَ نَعْبُدُ وَإِيَّاكَ نَسْتَعِينُ",
-    ("1", "6"): "اهْدِنَا الصِّرَاطَ الْمُسْتَقِيمَ",
-    (
-        "1",
-        "7",
-    ): "صِرَاطَ الَّذِينَ أَنْعَمْتَ عَلَيْهِمْ غَيْرِ الْمَغْضُوبِ عَلَيْهِمْ وَلَا الضَّالِّينَ",
-}
+QURAN_API_BASE = "https://api.alquran.cloud/v1"
+
+
+def get_quran_ayah(surah_number, ayah_number):
+    try:
+        url = f"{QURAN_API_BASE}/ayah/{surah_number}:{ayah_number}/quran-uthmani"
+
+        with urllib.request.urlopen(url, timeout=10) as response:
+            data = json.loads(response.read().decode("utf-8"))
+
+        if data.get("code") != 200:
+            return None
+
+        return data.get("data", {}).get("text")
+
+    except Exception as e:
+        print(f"Quran API error: {e}", file=sys.stderr, flush=True)
+        return None
 
 
 # =========================================================
@@ -325,9 +332,7 @@ def analyze_audio(audio_path, surah_number=None, ayah_number=None):
 
     transcription = result.get("text", "").strip()
 
-    key = (str(surah_number), str(ayah_number))
-
-    expected_text = QURAN_AYAHS.get(key)
+    expected_text = get_quran_ayah(surah_number, ayah_number)
 
     # =====================================================
     # NO EXPECTED AYAH
