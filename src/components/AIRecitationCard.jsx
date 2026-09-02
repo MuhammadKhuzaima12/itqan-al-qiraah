@@ -10,7 +10,7 @@ import {
 
 const API_URL =
     import.meta.env.VITE_API_URL ||
-    "https://itqan-al-qiraah-backend.vercel.app/api/health";
+    "https://itqan-al-qiraah-backend.vercel.app";
 
 function AIRecitationCard({
     ayah,
