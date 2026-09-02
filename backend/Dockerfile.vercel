@@ -20,7 +20,12 @@ RUN pip install --no-cache-dir \
     --index-url https://download.pytorch.org/whl/cpu
 
 # Whisper
-RUN pip install --no-cache-dir openai-whisper
+RUN pip install --no-cache-dir \
+    openai-whisper \
+    transformers \
+    torch \
+    accelerate \
+    sentencepiece
 
 # Application
 COPY . .
